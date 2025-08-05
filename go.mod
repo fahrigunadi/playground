@@ -5,11 +5,13 @@ go 1.23.0
 toolchain go1.24.0
 
 require (
+	github.com/brianvoe/gofakeit/v7 v7.3.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/goravel/framework v1.16.0
 	github.com/goravel/gin v1.4.0
 	github.com/goravel/mysql v1.4.0
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/image v0.29.0
 	google.golang.org/grpc v1.73.0
 )
 
@@ -31,7 +33,6 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/brianvoe/gofakeit/v7 v7.3.0 // indirect
 	github.com/bytedance/sonic v1.12.6 // indirect
 	github.com/bytedance/sonic/loader v0.2.1 // indirect
 	github.com/catppuccin/go v0.3.0 // indirect
