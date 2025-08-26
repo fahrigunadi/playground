@@ -12,4 +12,6 @@ func Web() {
 	})
 
 	facades.Route().Get("/image/{widthXHeight}", controllers.NewImageController().Index)
+
+	facades.Route().StaticFile("/generate-images.sh", "public/generate-images.sh")
 }
