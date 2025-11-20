@@ -11,6 +11,10 @@ func Web() {
 		return ctx.Response().View().Make("welcome.tmpl")
 	})
 
+	facades.Route().Get("/editor", func(ctx http.Context) http.Response {
+		return ctx.Response().View().Make("editor.tmpl")
+	})
+
 	facades.Route().Any("/http/status/{status}", controllers.NewHttpController().Status)
 
 	facades.Route().Get("/image/{widthXHeight}", controllers.NewImageController().Index)

@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Editor</title>
+  <style>
+    html,body { height:100%; margin:0; font-family:Inter, system-ui, sans-serif; }
+    .topbar { height:56px; display:flex; align-items:center; gap:8px; padding:8px 12px; background:#0f172a; color:#fff; }
+    .topbar .title { font-weight:600; font-size:15px; }
+    .controls { margin-left:auto; display:flex; gap:8px; }
+    button, select, input[type=file] { background:#111827; color:#e6eef8; border:1px solid rgba(255,255,255,0.06); padding:6px 10px; border-radius:6px; cursor:pointer; }
+    button:hover { opacity:0.95 }
+    #editor { position:fixed; top:56px; right:0; bottom:0; left:0; }
+    .hint { font-size:12px; opacity:0.8; margin-left:8px }
+    .badge { background:#0ea5a4; padding:4px 8px; border-radius:999px; font-size:12px }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title">Editor</div>
+    <div class="hint">(Open file → preview / format JSON / download)</div>
+
+    <div class="controls">
+      <label title="Open local file">
+        <input id="fileInput" type="file" accept="*/*" style="display:none" />
+        <button id="btnOpen">Open file</button>
+      </label>
+
+      <select id="langSelect" title="Pilih bahasa (override)">
+        <option value="auto">Auto detect</option>
+        <option value="json">JSON</option>
+        <option value="javascript">JavaScript</option>
+        <option value="typescript">TypeScript</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+        <option value="xml">XML</option>
+        <option value="plaintext">Plain text</option>
+      </select>
+
+      <button id="btnFormat">Format (JSON)</button>
+      <button id="btnToggleRO">Read-only: off</button>
+      <button id="btnDownload">Download</button>
+    </div>
+  </div>
+
+  <div id="editor"></div>
+
+  <!-- Monaco loader from jsDelivr -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/min/vs/loader.js"></script>
+  <script>
+    // Configure loader to use jsDelivr path
+    require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/min/vs' } });
+
+    // Create a worker loader that uses blob to avoid CORS issues
+    window.MonacoEnvironment = {
+      getWorkerUrl: function(moduleId, label) {
+        const proxy = URL.createObjectURL(new Blob([
+          `self.MonacoEnvironment = { baseUrl: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/min/' };
+           importScripts('https://cdn.jsdelivr.net/npm/monaco-editor@0.43.0/min/vs/base/worker/workerMain.js');`
+        ], { type: 'text/javascript' }));
+        return proxy;
+      }
+    };
+
+    require(['vs/editor/editor.main'], function() {
+      const editor = monaco.editor.create(document.getElementById('editor'), {
+        value: sampleContent(),
+        language: 'json',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        wordWrap: 'on',
+        minimap: { enabled: false },
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace',
+        fontSize: 13
+      });
+
+      // Helpers
+      const fileInput = document.getElementById('fileInput');
+      const btnOpen = document.getElementById('btnOpen');
+      const btnFormat = document.getElementById('btnFormat');
+      const btnToggleRO = document.getElementById('btnToggleRO');
+      const btnDownload = document.getElementById('btnDownload');
+      const langSelect = document.getElementById('langSelect');
+
+      let isReadOnly = false;
+      let currentFileName = 'untitled.txt';
+
+      btnOpen.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', async (ev) => {
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        currentFileName = f.name;
+        const text = await f.text();
+        const detected = detectLanguageByName(f.name, text);
+        setLanguage(detected);
+        editor.setValue(text);
+      });
+
+      langSelect.addEventListener('change', () => {
+        const v = langSelect.value;
+        if (v === 'auto') {
+          // re-detect from current content
+          const content = editor.getValue();
+          setLanguage(detectLanguageByContentAndName(content, currentFileName));
+        } else {
+          setLanguage(v);
+        }
+      });
+
+      btnFormat.addEventListener('click', () => {
+        const lang = editor.getModel().getModeId();
+        if (lang === 'json') {
+          try {
+            const parsed = JSON.parse(editor.getValue());
+            const pretty = JSON.stringify(parsed, null, 2);
+            editor.setValue(pretty);
+          } catch (e) {
+            alert('Invalid JSON: ' + e.message);
+          }
+        } else {
+          // Try to format JS-like content using Monaco's formatting if available
+          monaco.editor.getAction('editor.action.formatDocument').run();
+        }
+      });
+
+      btnToggleRO.addEventListener('click', () => {
+        isReadOnly = !isReadOnly;
+        editor.updateOptions({ readOnly: isReadOnly });
+        btnToggleRO.textContent = 'Read-only: ' + (isReadOnly ? 'on' : 'off');
+      });
+
+      btnDownload.addEventListener('click', () => downloadCurrent());
+
+      // Keyboard shortcuts
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KEY_S, function() {
+        downloadCurrent();
+      });
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KEY_F, function() {
+        btnFormat.click();
+      });
+
+      // Functions
+      function setLanguage(lang) {
+        try {
+          monaco.editor.setModelLanguage(editor.getModel(), lang);
+          // try to set selection in dropdown if exists
+          const opt = Array.from(langSelect.options).find(o => o.value === lang);
+          if (opt) langSelect.value = lang;
+        } catch (e) {
+          console.warn('setLanguage failed', e);
+        }
+      }
+
+      function detectLanguageByName(name, content) {
+        if (!name) return detectLanguageByContent(content);
+        const ext = name.split('.').pop().toLowerCase();
+        const map = {
+          'json': 'json', 'js': 'javascript', 'mjs': 'javascript', 'cjs': 'javascript',
+          'ts': 'typescript', 'tsx': 'typescript', 'jsx': 'javascript',
+          'html': 'html', 'htm': 'html', 'css': 'css', 'xml': 'xml', 'txt': 'plaintext', 'md': 'markdown'
+        };
+        return map[ext] || detectLanguageByContent(content);
+      }
+
+      function detectLanguageByContent(content) {
+        // quick heuristic: valid JSON?
+        try { JSON.parse(content); return 'json'; } catch(e) {}
+        if (/^\s*<\w+/m.test(content)) return 'html';
+        if (/^\s*\{?[\s\S]*function\b/m.test(content)) return 'javascript';
+        return 'plaintext';
+      }
+
+      function detectLanguageByContentAndName(content, name) {
+        return detectLanguageByName(name, content);
+      }
+
+      function downloadCurrent() {
+        const data = editor.getValue();
+        const blob = new Blob([data], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = currentFileName || 'untitled.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function sampleContent() {
+        return '{\n  "message": "Drop or open a file to preview (JSON, HTML, JS, etc.)",\n  "hint": "Use the language selector to override detection. Ctrl+S to download, Ctrl+Shift+F to format JSON."\n}';
+      }
+
+      // If user drops a file onto editor
+      const editorContainer = document.getElementById('editor');
+      ['dragenter','dragover'].forEach(evt => editorContainer.addEventListener(evt, (e) => { e.preventDefault(); }));
+      editorContainer.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (!f) return;file
+        currentFileName = f.name;
+        const text = await f.text();
+        const detected = detectLanguageByName(f.name, text);
+        setLanguage(detected);
+        editor.setValue(text);
+      });
+
+      // Expose for debugging from console
+      window.__MONACO_PREVIEW = { editor };
+    });
+  </script>
+</body>
+</html>
