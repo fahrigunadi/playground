@@ -11,6 +11,8 @@ func Web() {
 		return ctx.Response().View().Make("welcome.tmpl")
 	})
 
+	facades.Route().Any("/http/status/{status}", controllers.NewHttpController().Status)
+
 	facades.Route().Get("/image/{widthXHeight}", controllers.NewImageController().Index)
 
 	facades.Route().StaticFile("/generate-images.sh", "public/generate-images.sh")
