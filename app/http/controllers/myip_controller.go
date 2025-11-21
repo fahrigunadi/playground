@@ -38,6 +38,7 @@ func (r *MyipController) Index(ctx http.Context) http.Response {
 			"ISP":     data.ISP,
 			"AS":      data.AS,
 		},
+		"UA": ctx.Request().Origin().UserAgent(),
 	})
 }
 
@@ -50,7 +51,7 @@ type GeoIP struct {
 }
 
 func fetchGeoIP(ip string) (*GeoIP, error) {
-	resp, err := httpLib.Get("https://ip-api.com/json/" + ip)
+	resp, err := httpLib.Get("http://ip-api.com/json/" + ip)
 	if err != nil {
 		return nil, err
 	}
