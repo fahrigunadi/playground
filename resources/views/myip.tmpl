@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>What Is My IP</title>
+</head>
+<body>
+  <h1>Your IP Address</h1>
+  <div style="font-size: 28px; font-weight: bold;">{{ .IP }}</div>
+
+  <h2>Network Information</h2>
+  <ul>
+    <li><b>Country:</b> {{ .Geo.Country }}</li>
+    <li><b>Region:</b> {{ .Geo.Region }}</li>
+    <li><b>City:</b> {{ .Geo.City }}</li>
+    <li><b>ISP:</b> {{ .Geo.ISP }}</li>
+    <li><b>AS:</b> {{ .Geo.AS }}</li>
+    <li><b>HTTPS:</b> {{ .IsHTTPS }}</li>
+    <li><b>User Agent:</b> {{ .UA }}</li>
+  </ul>
+</body>
+</html>

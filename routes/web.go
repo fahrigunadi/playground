@@ -15,6 +15,8 @@ func Web() {
 		return ctx.Response().View().Make("editor.tmpl")
 	})
 
+	facades.Route().Any("/myip", controllers.NewMyipController().Index)
+
 	facades.Route().Any("/http/status/{status}", controllers.NewHttpController().Status)
 
 	facades.Route().Get("/image/{widthXHeight}", controllers.NewImageController().Index)
