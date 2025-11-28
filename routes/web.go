@@ -24,4 +24,5 @@ func Web() {
 	facades.Route().Get("/pdf", controllers.NewPdfController().Index)
 
 	facades.Route().StaticFile("/generate-images.sh", "public/generate-images.sh")
+	facades.Route().StaticFile("/timezone.json", "public/timezone.json")
 }
